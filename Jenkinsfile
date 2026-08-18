@@ -16,6 +16,7 @@ pipeline {
 
                     echo "Building WebGoat"
                     chmod +x mvnw
+
                     ./mvnw -B clean package -DskipTests -DskipITs
                 '''
             }
@@ -31,15 +32,12 @@ pipeline {
         stage('Sonatype Lifecycle Scan') {
             steps {
                 script {
-                    def policyEvaluation = nexusPolicyEvaluation(
+                    nexusPolicyEvaluation(
                         failBuildOnNetworkError: true,
                         iqApplication: selectedApplication('webgoat'),
                         iqScanPatterns: [[scanPattern: '**/target/*.jar']],
                         iqStage: 'build'
                     )
-
-                    echo "Lifecycle report:"
-                    echo "${policyEvaluation.applicationCompositionReportUrl}"
                 }
             }
         }
