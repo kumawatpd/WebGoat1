@@ -7,13 +7,25 @@ pipeline {
     }
 
     stages {
+
         stage('Build') {
             steps {
                 sh '''
+                    echo "Checking Java"
                     java -version
+
+                    echo "Building WebGoat"
                     chmod +x mvnw
+
                     ./mvnw -B clean package -DskipTests -DskipITs
                 '''
+            }
+        }
+
+        stage('Archive') {
+            steps {
+                archiveArtifacts artifacts: '**/target/*.jar',
+                                 fingerprint: true
             }
         }
 
@@ -24,13 +36,23 @@ pipeline {
                         failBuildOnNetworkError: true,
                         iqApplication: selectedApplication('webgoat-legacy'),
                         iqScanPatterns: [[scanPattern: '**/target/*.jar']],
-                        iqStage: 'build',
-                        jobCredentialsId: 'admin'
+                        iqStage: 'build'
                     )
 
-                    echo "IQ Scan URL: ${policyEvaluation.applicationCompositionReportUrl}"
+                    echo "Lifecycle Report:"
+                    echo "${policyEvaluation.applicationCompositionReportUrl}"
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo 'WebGoat pipeline completed successfully'
+        }
+
+        failure {
+            echo 'WebGoat pipeline failed'
         }
     }
 }
