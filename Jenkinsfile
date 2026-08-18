@@ -18,8 +18,7 @@ pipeline {
                     java -version
 
                     echo "======================================"
-                    echo "Building WebGoat"
-                    echo "Dependencies are routed through Nexus"
+                    echo "Building WebGoat through Nexus"
                     echo "======================================"
 
                     chmod +x mvnw
@@ -88,47 +87,33 @@ pipeline {
             steps {
                 sh '''
                     echo "======================================"
-                    echo "Files that will be published"
+                    echo "Checking files before Nexus publish"
                     echo "======================================"
 
                     ls -lh target/webgoat-2026.2-SNAPSHOT.jar
                     ls -lh pom.xml
+                    ls -lh target/webgoat-sbom.json
                 '''
             }
         }
 
         stage('Publish to Nexus Repository') {
             steps {
-                echo 'Publishing WebGoat SNAPSHOT to Nexus'
+                sh '''
+                    echo "======================================"
+                    echo "Publishing WebGoat SNAPSHOT to Nexus"
+                    echo "======================================"
 
-                nexusPublisher(
-                    nexusInstanceId: 'nxrm3',
-                    nexusRepositoryId: 'maven-snapshots',
-
-                    packages: [[
-                        $class: 'MavenPackage',
-
-                        mavenAssetList: [
-                            [
-                                classifier: '',
-                                extension: 'jar',
-                                filePath: 'target/webgoat-2026.2-SNAPSHOT.jar'
-                            ],
-                            [
-                                classifier: '',
-                                extension: 'pom',
-                                filePath: 'pom.xml'
-                            ]
-                        ],
-
-                        mavenCoordinate: [
-                            groupId: 'org.owasp.webgoat',
-                            artifactId: 'webgoat',
-                            packaging: 'jar',
-                            version: '2026.2-SNAPSHOT'
-                        ]
-                    ]]
-                )
+                    ./mvnw deploy:deploy-file \
+                      -DgroupId=org.owasp.webgoat \
+                      -DartifactId=webgoat \
+                      -Dversion=2026.2-SNAPSHOT \
+                      -Dpackaging=jar \
+                      -Dfile=target/webgoat-2026.2-SNAPSHOT.jar \
+                      -DpomFile=pom.xml \
+                      -DrepositoryId=nexus-snapshots \
+                      -Durl=http://localhost:8081/repository/maven-snapshots/
+                '''
             }
         }
     }
@@ -139,18 +124,18 @@ pipeline {
             echo '======================================'
             echo 'WEBGOAT SUPPLY CHAIN PIPELINE SUCCESS'
             echo '======================================'
-            echo 'WebGoat build: SUCCESS'
+            echo 'Build: SUCCESS'
             echo 'Repository Firewall path: USED'
-            echo 'CycloneDX SBOM: GENERATED'
-            echo 'Lifecycle evaluation: COMPLETED'
-            echo 'Nexus publication: COMPLETED'
+            echo 'SBOM: GENERATED'
+            echo 'Lifecycle Scan: COMPLETED'
+            echo 'Artifact: PUBLISHED TO NEXUS'
             echo '======================================'
         }
 
         failure {
             echo '======================================'
-            echo 'WEBGOAT PIPELINE FAILED'
-            echo 'Check the failed stage above'
+            echo 'WEBGOAT SUPPLY CHAIN PIPELINE FAILED'
+            echo 'Check the failed Jenkins stage above'
             echo '======================================'
         }
 
