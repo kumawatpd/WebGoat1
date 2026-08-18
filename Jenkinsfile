@@ -14,7 +14,7 @@ pipeline {
                     echo "Checking Java"
                     java -version
 
-                    echo "Building WebGoat"
+                    echo "Building WebGoat through Nexus Repository"
                     chmod +x mvnw
 
                     ./mvnw -B clean package -DskipTests -DskipITs
@@ -24,8 +24,10 @@ pipeline {
 
         stage('Archive JAR') {
             steps {
-                archiveArtifacts artifacts: '**/target/*.jar',
-                                 fingerprint: true
+                archiveArtifacts(
+                    artifacts: '**/target/*.jar',
+                    fingerprint: true
+                )
             }
         }
 
@@ -42,8 +44,10 @@ pipeline {
 
         stage('Archive SBOM') {
             steps {
-                archiveArtifacts artifacts: '**/target/webgoat-sbom.*',
-                                 fingerprint: true
+                archiveArtifacts(
+                    artifacts: '**/target/webgoat-sbom.*',
+                    fingerprint: true
+                )
             }
         }
 
@@ -53,7 +57,9 @@ pipeline {
                     nexusPolicyEvaluation(
                         failBuildOnNetworkError: true,
                         iqApplication: selectedApplication('webgoat'),
-                        iqScanPatterns: [[scanPattern: '**/target/*.jar']],
+                        iqScanPatterns: [[
+                            scanPattern: '**/target/*.jar'
+                        ]],
                         iqStage: 'build'
                     )
                 }
@@ -64,17 +70,23 @@ pipeline {
             steps {
                 nexusPublisher(
                     nexusInstanceId: 'nxrm3',
-                    nexusRepositoryId: 'maven-releases',
+
+                    // WebGoat version contains SNAPSHOT,
+                    // therefore publish to maven-snapshots
+                    nexusRepositoryId: 'maven-snapshots',
+
                     packages: [[
                         $class: 'MavenPackage',
+
                         mavenAssetList: [[
                             classifier: '',
                             extension: 'jar',
                             filePath: 'target/webgoat-2026.2-SNAPSHOT.jar'
                         ]],
+
                         mavenCoordinate: [
-                            artifactId: 'webgoat',
                             groupId: 'org.demo',
+                            artifactId: 'webgoat',
                             packaging: 'jar',
                             version: '2026.2-SNAPSHOT'
                         ]
@@ -85,12 +97,26 @@ pipeline {
     }
 
     post {
+
         success {
+            echo '========================================'
             echo 'WebGoat pipeline completed successfully'
+            echo 'Build: SUCCESS'
+            echo 'SBOM: GENERATED'
+            echo 'Lifecycle: COMPLETED'
+            echo 'Artifact: PUBLISHED TO NEXUS'
+            echo '========================================'
         }
 
         failure {
+            echo '========================================'
             echo 'WebGoat pipeline failed'
+            echo 'Check the failed Jenkins stage'
+            echo '========================================'
+        }
+
+        always {
+            echo "Jenkins Build Number: ${BUILD_NUMBER}"
         }
     }
 }
