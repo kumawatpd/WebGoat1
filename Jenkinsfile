@@ -1,56 +1,36 @@
 pipeline {
-    agent any
+    agent any
 
-    tools {
-        maven 'mvn3916'
-        jdk 'jdk8'
-    }
+    environment {
+        JAVA_HOME = '/opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home'
+        PATH = "${JAVA_HOME}/bin:${env.PATH}"
+    }
 
-    environment {
-        ARTEFACT_NAME = "${WORKSPACE}/target/WebGoat-${BUILD_VERSION}.war"
-        IQ_SCAN_URL = ""
-    }
+    stages {
+        stage('Build') {
+            steps {
+                sh '''
+                    java -version
+                    chmod +x mvnw
+                    ./mvnw -B clean package -DskipTests -DskipITs
+                '''
+            }
+        }
 
-    stages {
-        stage('Build') {
-            steps {
-                sh 'mvn -B -Dproject.version=$BUILD_VERSION -Dmaven.test.failure.ignore clean package'
-            }
-            post {
-                success {
-                    echo 'Now archiving...'
-                    archiveArtifacts artifacts: "**/target/*.war"
-                }
-            }
-        }
-        stage('Nexus IQ Scan'){
-            steps {
-                script{
+        stage('Nexus IQ Scan') {
+            steps {
+                script {
+                    def policyEvaluation = nexusPolicyEvaluation(
+                        failBuildOnNetworkError: true,
+                        iqApplication: selectedApplication('webgoat-legacy'),
+                        iqScanPatterns: [[scanPattern: '**/target/*.jar']],
+                        iqStage: 'build',
+                        jobCredentialsId: 'admin'
+                    )
 
-                        def policyEvaluation = nexusPolicyEvaluation (
-                                advancedProperties: '',
-                                enableDebugLogging: false,
-                                failBuildOnNetworkError: false,
-                                failBuildOnScanningErrors: false,
-                                iqApplication: selectedApplication('webgoat'),
-                                iqInstanceId: 'nxiq',
-                                iqOrganization: 'e10a8b63f64d40c49c492f5d5ad6eef6',
-                                iqScanPatterns: [[scanPattern: '**/*.war']],
-                                iqStage: 'build',
-                                jobCredentialsId: 'sonatype',
-                                reachability: [
-                                    javaAnalysis: [
-                                        enable: true
-                                    ]
-                                ]
-                        )
-
-                        echo "Nexus IQ scan succeeded: ${policyEvaluation.applicationCompositionReportUrl}"
-                        IQ_SCAN_URL = "${policyEvaluation.applicationCompositionReportUrl}"
-
-                }
-            }
-        }
-
-    }
+                    echo "IQ Scan URL: ${policyEvaluation.applicationCompositionReportUrl}"
+                }
+            }
+        }
+    }
 }
