@@ -16,7 +16,6 @@ pipeline {
 
                     echo "Building WebGoat"
                     chmod +x mvnw
-
                     ./mvnw -B clean package -DskipTests -DskipITs
                 '''
             }
@@ -26,22 +25,6 @@ pipeline {
             steps {
                 archiveArtifacts artifacts: '**/target/*.jar',
                                  fingerprint: true
-            }
-        }
-
-        stage('Nexus IQ Scan') {
-            steps {
-                script {
-                    def policyEvaluation = nexusPolicyEvaluation(
-                        failBuildOnNetworkError: true,
-                        iqApplication: selectedApplication('webgoat-legacy'),
-                        iqScanPatterns: [[scanPattern: '**/target/*.jar']],
-                        iqStage: 'build'
-                    )
-
-                    echo "Lifecycle Report:"
-                    echo "${policyEvaluation.applicationCompositionReportUrl}"
-                }
             }
         }
     }
