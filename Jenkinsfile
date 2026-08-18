@@ -8,7 +8,7 @@ pipeline {
 
     stages {
 
-        stage('Build') {
+        stage('Build via Nexus Firewall') {
             steps {
                 sh '''
                     echo "Checking Java"
@@ -57,6 +57,29 @@ pipeline {
                         iqStage: 'build'
                     )
                 }
+            }
+        }
+
+        stage('Publish to Nexus Repository') {
+            steps {
+                nexusPublisher(
+                    nexusInstanceId: 'nxrm3',
+                    nexusRepositoryId: 'maven-releases',
+                    packages: [[
+                        $class: 'MavenPackage',
+                        mavenAssetList: [[
+                            classifier: '',
+                            extension: 'jar',
+                            filePath: 'target/webgoat-2026.2-SNAPSHOT.jar'
+                        ]],
+                        mavenCoordinate: [
+                            artifactId: 'webgoat',
+                            groupId: 'org.demo',
+                            packaging: 'jar',
+                            version: '2026.2-SNAPSHOT'
+                        ]
+                    ]]
+                )
             }
         }
     }
