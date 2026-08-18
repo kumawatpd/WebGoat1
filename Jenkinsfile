@@ -22,9 +22,27 @@ pipeline {
             }
         }
 
-        stage('Archive') {
+        stage('Archive JAR') {
             steps {
                 archiveArtifacts artifacts: '**/target/*.jar',
+                                 fingerprint: true
+            }
+        }
+
+        stage('Generate SBOM') {
+            steps {
+                sh '''
+                    echo "Generating CycloneDX SBOM"
+
+                    ./mvnw org.cyclonedx:cyclonedx-maven-plugin:2.8.2:makeAggregateBom \
+                      -DoutputName=webgoat-sbom
+                '''
+            }
+        }
+
+        stage('Archive SBOM') {
+            steps {
+                archiveArtifacts artifacts: '**/target/webgoat-sbom.*',
                                  fingerprint: true
             }
         }
