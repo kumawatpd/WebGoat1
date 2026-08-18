@@ -27,6 +27,22 @@ pipeline {
                                  fingerprint: true
             }
         }
+
+        stage('Sonatype Lifecycle Scan') {
+            steps {
+                script {
+                    def policyEvaluation = nexusPolicyEvaluation(
+                        failBuildOnNetworkError: true,
+                        iqApplication: selectedApplication('webgoat'),
+                        iqScanPatterns: [[scanPattern: '**/target/*.jar']],
+                        iqStage: 'build'
+                    )
+
+                    echo "Lifecycle report:"
+                    echo "${policyEvaluation.applicationCompositionReportUrl}"
+                }
+            }
+        }
     }
 
     post {
